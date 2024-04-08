@@ -1,0 +1,112 @@
+% prepares/executes the optimization
+%   - def: inbound
+%   - def: 'f','df','H' via 'mk_ funs'
+%   - runs the optimization from each point of 'start'
+% creates contour + funct. value plots
+
+function wrap(obj_fun, opts)
+  arguments
+    obj_fun struct
+    opts struct
+  end
+
+  opts = mk_inbound(obj_fun, opts);
+
+  opts = mk_stop(obj_fun, opts);
+
+  obj_fun = mk_obj_fun(obj_fun, opts);
+
+  nvar = obj_fun.nvar;
+  f = obj_fun.f;
+
+  opts = mk_direction(obj_fun, opts);
+  
+  opts = mk_pre_step(obj_fun, opts);
+
+  opts = mk_step(obj_fun, opts);
+
+  opts = mk_post_step(obj_fun, opts);
+
+
+  opt_loc = obj_fun.opt_loc; 
+  opt_val = f(opt_loc);
+
+ 
+  % handle starting points
+  if ~isfield(opts, "start") || isempty(opts.start)
+    if ~isfield(opts, "n_start")
+      n_start = 5;
+    else
+      n_start = opts.n_start;
+    end
+    
+    start=zeros(nvar, n_start);
+    for it = 1:n_start
+      start(:, it) = random("Uniform", obj_fun.LO, obj_fun.UP);
+    end
+  else
+    [~,n_start] = size(opts.start);
+  end
+
+  %n_start
+
+  [ini_plot, inter_plot, final_plot] = mk_plot(obj_fun, opts);
+
+  %ax_funval = subplot(2,1,2); hold(ax_funval);
+
+  stats = [0;0;0]; % ||xakt-xopt|| átlag + it átlag, nfuneval átlag
+  subtract = 0;
+
+  obj_fun.reset_funeval();
+  for x0 = opts.start
+    disp(x0);
+    [X, result] = edugrad(obj_fun, x0, opts);
+    %results.nfuneval
+    stats = stats + [result.it; result.nfuneval; abs(f(result.x_act)-opt_val)];
+    
+    [~,c] = size(X);
+    subtract = subtract + c; % excess usage
+
+    inter_plot(X);
+  end
+
+  stats(2) = stats(2)-subtract;
+  stats = stats/opts.n_start;
+  
+  final_plot(stats, result)
+  if opts.n_start > 1
+    %ax_contour.title( sprintf( "it: %.2f\n nfuneval=%.2f\n  dist-to-opt_val: %.4f\n ", stats(1), stats(2), stats(3) ) );
+    ac_title = replace(...
+      sprintf( "it: %.2f\n nfuneval=%.2f\n  dist-to-opt-val: %.4f\n ", stats(1), stats(2), stats(3) ),...
+      "_","-");
+  else
+    stop_ev = results.stop_ev;
+    last = X(:,end);
+    ac_title = replace(...
+      sprintf( "it: %d\n nfuneval=%d\n  dist-to-opt-val: %.4f\n stop: %s\n last: (%.2f; %.2f)", stats(1), stats(2), stats(3), stop_ev, last(1), last(2) ),...
+      "_","-");
+  end
+  title(ax_contour, ac_title);
+
+  rx = (obj_fun.UP(1)-obj_fun.LO(1));
+  xlim(ax_contour, [obj_fun.LO(1)-0.05*rx, obj_fun.UP(1)+ 0.05*rx]);
+
+  ry = (obj_fun.UP(2)-obj_fun.LO(2));
+  ylim(ax_contour, [obj_fun.LO(2)-0.05*ry, obj_fun.UP(2)+ 0.05*ry]);
+
+  xlim(ax_funval, [0,inf]);
+
+  ax_title = replace(...
+    sprintf("obj_fun: %s | direction: %s | step: %s", obj_fun.name, opts.direction.do, opts.step.do),...
+    "_","-");
+  if opts.prestep.do>""
+    ax_title = ax_title + " | pre: " + opts.prestep.do;
+  end
+
+  if opts.poststep.do>""
+    ax_title = ax_title + " | post: " + opts.poststep.do;
+  end
+  
+  title(ax, ax_title);
+end
+

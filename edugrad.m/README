@@ -1,0 +1,3 @@
+- valami nem jo az nfuneval-lal
+  - jav:
+    - f volt atadva az approx-oknak @loc_f helyett (ez az nfuneval valtozat)

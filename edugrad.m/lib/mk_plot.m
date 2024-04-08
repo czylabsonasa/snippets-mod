@@ -1,0 +1,61 @@
+function [inter, final] = mk_plot(obj_fun, opts)
+  f = obj_fun.f;
+  fig=figure(1); clf;
+
+  ax = tiledlayout(fig, 2,1,"TileSpacing","compact");
+  ax_contour   = nexttile; hold(ax_contour);
+  plot_contour(ax_contour, obj_fun); 
+  ax_funval = nexttile; hold(ax_funval);
+
+  function inter0(X)
+    [~,n] = size(X);
+    plot(ax_contour, X(1,:), X(2,:),".-");
+    funval = zeros(n,1);
+    for it=1:n
+      funval(it) = f(X(:,it));
+    end
+    plot(ax_funval, funval);
+
+  end % of inter_plot
+
+  function final0(result, stats, X)
+
+    if opts.n_start > 1
+      ac_title = replace(...
+        sprintf( "(averages)\nit: %.2f\n nfuneval=%.2f\n  dist-to-opt-val: %.4f\n ", stats(1), stats(2), stats(3) ),...
+        "_","-");
+    else
+      stop_ev = result.stop_ev;
+      last = X(:,end);
+      ac_title = replace(...
+        sprintf( "it: %d\n nfuneval=%d\n  dist-to-opt-val: %.4f\n stop: %s\n last: (%.2f; %.2f)", stats(1), stats(2), stats(3), stop_ev, last(1), last(2) ),...
+        "_","-");
+    end
+    title(ax_contour, ac_title);
+  
+    rx = (obj_fun.UP(1)-obj_fun.LO(1));
+    xlim(ax_contour, [obj_fun.LO(1)-0.05*rx, obj_fun.UP(1)+ 0.05*rx]);
+  
+    ry = (obj_fun.UP(2)-obj_fun.LO(2));
+    ylim(ax_contour, [obj_fun.LO(2)-0.05*ry, obj_fun.UP(2)+ 0.05*ry]);
+  
+    xlim(ax_funval, [0,inf]);
+  
+    ax_title = replace(...
+      sprintf("obj_fun: %s | direction: %s | step: %s", obj_fun.name, opts.direction.do, opts.step.do),...
+      "_","-");
+    if opts.pre_step.do>""
+      ax_title = ax_title + " | pre: " + opts.prestep.do;
+    end
+  
+    if opts.post_step.do>""
+      ax_title = ax_title + " | post: " + opts.poststep.do;
+    end
+    
+    title(ax, ax_title);
+
+  end % of final_plot
+  
+  inter  = @inter0;
+  final = @final0;
+end
